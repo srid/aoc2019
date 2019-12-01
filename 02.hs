@@ -1,16 +1,16 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -p ghcid
-#! nix-shell -p "haskellPackages.ghcWithPackages (p: [p.relude])"
+#! nix-shell -p "import ./haskell.nix (p: [p.relude])"
 #! nix-shell -i "ghcid -T main"
 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Control.Monad (guard)
 import Data.List (unfoldr)
 import Data.Maybe (fromJust)
 import Relude
-import Relude.Extra.Tuple (dupe)
+import Relude.Bool.Guard (guarded)
+import Relude.Extra.Tuple (dup)
 
 main :: IO ()
 main = do
@@ -19,12 +19,8 @@ main = do
   print $ sum $ completeFuelRequired <$> input
 
 completeFuelRequired :: Int -> Int
-completeFuelRequired = sum . unfoldr go
-  where
-    go n = do
-      let v = fuelRequired n
-      guard $ v > 0
-      pure $ dupe v
+completeFuelRequired =
+  sum . unfoldr (fmap dup . guarded (> 0) . fuelRequired)
 
 fuelRequired :: Int -> Int
 fuelRequired mass =
