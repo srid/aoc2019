@@ -1,7 +1,7 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -p ghcid
-#! nix-shell -p "haskellPackages.ghcWithPackages (p: [])"
-#! nix-shell -i "ghcid -T main"
+#! nix-shell -p "import ./haskell.nix (p: [])"
+#! nix-shell --pure -i "ghcid -T main"
 
 {-# LANGUAGE ScopedTypeVariables #-}
 

@@ -1,7 +1,7 @@
 #! /usr/bin/env nix-shell
 #! nix-shell -p ghcid
 #! nix-shell -p "import ./haskell.nix (p: [p.relude])"
-#! nix-shell -i "ghcid -T main"
+#! nix-shell --pure -i "ghcid -T main"
 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
@@ -12,8 +12,8 @@ import Relude.Extra.Tuple (dup)
 main :: IO ()
 main = do
   Right input <- readLines "input/1"
-  -- Expect: 5277255
   print $ sum $ completeFuelRequired <$> input
+  -- Expect: 5277255
 
 completeFuelRequired :: Int -> Int
 completeFuelRequired =
