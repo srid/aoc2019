@@ -11,9 +11,7 @@ import Relude.Extra.Tuple (dup)
 
 main :: IO ()
 main = do
-  Right input <-
-    traverse (readEither . toString) . lines
-      <$> readFileText "input/1"
+  Right input <- readLines "input/1"
   -- Expect: 5277255
   print $ sum $ completeFuelRequired <$> input
 
@@ -24,3 +22,7 @@ completeFuelRequired =
 fuelRequired :: Int -> Int
 fuelRequired mass =
   floor (fromIntegral mass / 3 :: Double) - 2
+
+readLines :: Read a => FilePath -> IO (Either Text [a])
+readLines f =
+  traverse readEither . fmap toString . lines <$> readFileText f
