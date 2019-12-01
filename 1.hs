@@ -7,7 +7,7 @@
 
 main :: IO ()
 main = do
-  input :: [Int] <- fmap read . lines <$> readFile "1.input"
+  input :: [Int] <- fmap read . lines <$> readFile "input/1"
   print $ sum $ fuelRequired <$> input
 
 fuelRequired :: Int -> Int

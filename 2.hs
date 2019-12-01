@@ -14,7 +14,7 @@ import Relude.Extra.Tuple (dupe)
 
 main :: IO ()
 main = do
-  input :: [Int] <- fmap read . lines <$> readFileText "1.input"
+  input :: [Int] <- fmap read . lines <$> readFileText "input/1"
   -- Expect: 5277255
   print $ sum $ completeFuelRequired <$> input
 
