@@ -6,13 +6,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Data.Maybe (fromJust)
 import Relude
 import Relude.Extra.Tuple (dup)
 
 main :: IO ()
 main = do
-  input :: [Int] <- fmap read . lines <$> readFileText "input/1"
+  Right input <-
+    traverse (readEither . toString) . lines
+      <$> readFileText "input/1"
   -- Expect: 5277255
   print $ sum $ completeFuelRequired <$> input
 
@@ -23,7 +24,3 @@ completeFuelRequired =
 fuelRequired :: Int -> Int
 fuelRequired mass =
   floor (fromIntegral mass / 3 :: Double) - 2
-
--- | Bypass relude's safety
-read :: Read a => Text -> a
-read = fromJust . readMaybe . toString
