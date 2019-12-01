@@ -6,10 +6,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Data.List (unfoldr)
 import Data.Maybe (fromJust)
 import Relude
-import Relude.Bool.Guard (guarded)
 import Relude.Extra.Tuple (dup)
 
 main :: IO ()
