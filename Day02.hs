@@ -45,8 +45,8 @@ computer =
     case readAddrMaybe idx mem of
       Nothing -> pure $ Just mem
       Just 99 -> pure $ Just mem
-      Just 1 -> put (idx + 4, doOp (+) idx mem) >> pure Nothing
-      Just 2 -> put (idx + 4, doOp (*) idx mem) >> pure Nothing
+      Just 1 -> put (doOp (+) idx mem) >> pure Nothing
+      Just 2 -> put (doOp (*) idx mem) >> pure Nothing
       Just op -> error $ "Bad op code: " <> show op
   where
     readAddr :: Address -> Memory -> Int
@@ -60,11 +60,11 @@ computer =
         ?: error "Bad pointer"
     writePointerVal :: Address -> Int -> Memory -> Memory
     writePointerVal k v m = Seq.update (readAddr k m) v m
-    doOp :: (Int -> Int -> Int) -> Address -> Memory -> Memory
+    doOp :: (Int -> Int -> Int) -> Address -> Memory -> (Address, Memory)
     doOp op idx mem =
       let a = readPointer (idx + 1) mem
           b = readPointer (idx + 2) mem
-       in writePointerVal (idx + 3) (op a b) mem
+       in (idx + 4, writePointerVal (idx + 3) (op a b) mem)
 
 restoreWith :: Int -> Int -> [Int] -> [Int]
 restoreWith x y = \case
