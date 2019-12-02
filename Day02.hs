@@ -14,7 +14,6 @@
 import Control.Monad.Loops (firstM, untilJust)
 import qualified Data.Sequence as Seq
 import Relude
-import Relude.Extra.Map
 import Text.Megaparsec hiding (State)
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -23,28 +22,20 @@ type Parser = Parsec Void Text
 
 main :: IO ()
 main = do
-  forM_ sample $ \s -> do
-    print $ go $ parseInput ".." s
   input <- readInput "input/2"
   -- Expect 5098658
-  print $ goHead $ restore1202 input
+  print $ go $ restoreWith 12 2 input
   void $ flip firstM ((,) <$> [0 .. 99] <*> [0 .. 99]) $ \(a, b) ->
-    case goHead (restoreWith a b input) of
+    case go (restoreWith a b input) of
       -- Expect: (50, 64)
       Just 19690720 -> print (a, b, 100 * a + b) >> pure True
       _ -> pure False
   where
-    goHead :: [Int] -> Maybe Int
-    goHead = listToMaybe . take 1 . go
-    go = fst . runState computer . (0,) . fromList
-    sample =
-      [ "1,0,0,0,99",
-        "2,3,0,3,99",
-        "2,4,4,5,99,0",
-        "1,1,1,4,99,5,6,0,99"
-      ]
+    go :: [Int] -> Maybe Int
+    go = listToMaybe . take 1 . fst . runState computer . (0,) . fromList
 
 type Address = Int
+
 type Memory = Seq Int
 
 computer :: State (Address, Memory) [Int]
@@ -59,20 +50,21 @@ computer =
       Just op -> error $ "Bad op code: " <> show op
   where
     readAddr :: Address -> Memory -> Int
-    readAddr k = fromMaybe (error "Bad addr") . readAddrMaybe k
+    readAddr k v =
+      readAddrMaybe k v
+        ?: error "Bad addr"
     readAddrMaybe = Seq.lookup
     readPointer :: Address -> Memory -> Int
-    readPointer k m = fromMaybe (error "Bad pointer") $ readAddrMaybe (readAddr k m) m
-    writeMem :: Address -> Int -> Memory -> Memory
-    writeMem k v m = Seq.update (readAddr k m) v m
+    readPointer k m =
+      readAddrMaybe (readAddr k m) m
+        ?: error "Bad pointer"
+    writePointerVal :: Address -> Int -> Memory -> Memory
+    writePointerVal k v m = Seq.update (readAddr k m) v m
     doOp :: (Int -> Int -> Int) -> Address -> Memory -> Memory
     doOp op idx mem =
       let a = readPointer (idx + 1) mem
           b = readPointer (idx + 2) mem
-       in writeMem (idx + 3) (op a b) mem
-
-restore1202 :: [Int] -> [Int]
-restore1202 = restoreWith 12 2
+       in writePointerVal (idx + 3) (op a b) mem
 
 restoreWith :: Int -> Int -> [Int] -> [Int]
 restoreWith x y = \case
