@@ -8,7 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Control.Monad.Loops (iterateWhile)
+import Control.Monad.Loops (untilJust)
 import Relude
 import Relude.Extra.Map
 import Text.Megaparsec hiding (State)
@@ -20,10 +20,9 @@ type Parser = Parsec Void Text
 main :: IO ()
 main = do
   forM_ sample $ \s -> do
-    putStr "Trying ... "
-    print s
     print $ go $ parseInput ".." s
-  print . go . restore1202 =<< readInput "input/2"
+  -- Expect 5098658
+  print . take 1 . go . restore1202 =<< readInput "input/2"
   where
     go = fst . runState computer . indexList 4
     sample =
@@ -34,30 +33,28 @@ main = do
       ]
 
 computer :: State ([Int], Map Int Int) [Int]
-computer = do
-  iterateWhile id $ do
-    (indices, nums) <- get
-    case indices of
-      [] -> pure False
-      idx : is -> case (readAddr idx nums) of
-        Just 99 -> pure False
-        Just 1 -> put (is, doOp (+) idx nums) >> pure True
-        Just 2 -> put (is, doOp (*) idx nums) >> pure True
-        Just op -> error $ "Bad op code: " <> show op
-        Nothing -> error "Bad op ref"
-  elems . snd <$> get
+computer =
+  fmap elems <$> untilJust $
+    get >>= \case
+      ([], mem) -> pure $ Just mem
+      (idx : is, mem) -> case readAddr idx mem of
+        99 -> pure $ Just mem
+        1 -> put (is, doOp (+) idx mem) >> pure Nothing
+        2 -> put (is, doOp (*) idx mem) >> pure Nothing
+        op -> error $ "Bad op code: " <> show op
   where
-    readAddr :: Int -> Map Int Int -> Maybe Int
-    readAddr = lookup
-    readMem :: Int -> Map Int Int -> Maybe Int
-    readMem k m = do
-      addr <- lookup k m
-      lookup addr m
+    readAddr :: Int -> Map Int Int -> Int
+    readAddr k = fromMaybe (error "Bad addr") . lookup k
+    readMem :: Int -> Map Int Int -> Int
+    readMem k m =
+      fromMaybe (error "Bad memory ref") $
+        lookup (readAddr k m) m
+    writeMem k v m = alter (maybe (error "Badd memory ref") (const $ Just v)) (readAddr k m) m
     doOp :: (Int -> Int -> Int) -> Int -> Map Int Int -> Map Int Int
-    doOp op idx nums = case ((,,) <$> readMem (idx + 1) nums <*> readMem (idx + 2) nums <*> readAddr (idx + 3) nums) of
-      Just (a, b, c) ->
-        alter (maybe (error "Bad memory ref") (const $ Just $ op a b)) c nums
-      Nothing -> error "Bad memory ref"
+    doOp op idx mem =
+      let a = readMem (idx + 1) mem
+          b = readMem (idx + 2) mem
+       in writeMem (idx + 3) (op a b) mem
 
 indexList :: Int -> [a] -> ([Int], Map Int a)
 indexList next x = (opIndices, fromList $ zip indices x)
