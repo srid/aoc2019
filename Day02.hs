@@ -42,21 +42,19 @@ computer :: State (Address, Memory) [Int]
 computer =
   fmap toList <$> untilJust $ do
     (idx, mem) <- get
-    case readAddrMaybe idx mem of
-      Nothing -> pure $ Just mem
-      Just 99 -> pure $ Just mem
-      Just 1 -> put (doOp (+) idx mem) >> pure Nothing
-      Just 2 -> put (doOp (*) idx mem) >> pure Nothing
-      Just op -> error $ "Bad op code: " <> show op
+    case readAddr idx mem of
+      1 -> put (doOp (+) idx mem) >> pure Nothing
+      2 -> put (doOp (*) idx mem) >> pure Nothing
+      99 -> pure $ Just mem
+      op -> error $ "Bad op code: " <> show op
   where
     readAddr :: Address -> Memory -> Int
     readAddr k v =
-      readAddrMaybe k v
+      Seq.lookup k v
         ?: error "Bad addr"
-    readAddrMaybe = Seq.lookup
     readPointer :: Address -> Memory -> Int
     readPointer k m =
-      readAddrMaybe (readAddr k m) m
+      Seq.lookup (readAddr k m) m
         ?: error "Bad pointer"
     writePointerVal :: Address -> Int -> Memory -> Memory
     writePointerVal k v m = Seq.update (readAddr k m) v m
