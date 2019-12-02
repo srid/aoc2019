@@ -3,6 +3,8 @@
 #! nix-shell -p "import ./haskell.nix (p: [p.relude p.megaparsec p.monad-loops])"
 #! nix-shell --pure -i "ghcid --warnings -T main"
 
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -21,9 +23,17 @@ main :: IO ()
 main = do
   forM_ sample $ \s -> do
     print $ go $ parseInput ".." s
+  input <- readInput "input/2"
   -- Expect 5098658
-  print . take 1 . go . restore1202 =<< readInput "input/2"
+  print $ goHead $ restore1202 input
+  forM_ ((,) <$> [0 .. 99] <*> [0 .. 99]) $ \(a, b) ->
+    case goHead (restoreWith a b input) of
+      -- Expect: (50, 64)
+      Just 19690720 -> print (a, b, 100 * a + b)
+      _ -> pure ()
   where
+    goHead :: [Int] -> Maybe Int
+    goHead = listToMaybe . take 1 . go
     go = fst . runState computer . indexList 4
     sample =
       [ "1,0,0,0,99",
@@ -63,8 +73,11 @@ indexList next x = (opIndices, fromList $ zip indices x)
     opIndices = [0, next .. length x -1]
 
 restore1202 :: [Int] -> [Int]
-restore1202 = \case
-  a : _ : _ : xs -> a : 12 : 2 : xs
+restore1202 = restoreWith 12 2
+
+restoreWith :: Int -> Int -> [Int] -> [Int]
+restoreWith x y = \case
+  a : _ : _ : xs -> a : x : y : xs
   _ -> error "Bad input"
 
 readInput :: FilePath -> IO [Int]
