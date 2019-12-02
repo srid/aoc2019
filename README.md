@@ -15,3 +15,6 @@ Install Nix, and then:
 # etc...
 ```
 
+## Postmortem
+
+- Day 1: [The simplicity of your `iterate` beats the (relative) complexity of my `unfoldr`.](https://twitter.com/carnivivre/status/1201598078429597696)
