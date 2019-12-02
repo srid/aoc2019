@@ -8,9 +8,11 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Control.Monad.Loops (untilJust)
+import Control.Monad.Loops (firstM, untilJust)
+import qualified Data.Sequence as Seq
 import Relude
 import Relude.Extra.Map
 import Text.Megaparsec hiding (State)
@@ -26,15 +28,15 @@ main = do
   input <- readInput "input/2"
   -- Expect 5098658
   print $ goHead $ restore1202 input
-  forM_ ((,) <$> [0 .. 99] <*> [0 .. 99]) $ \(a, b) ->
+  void $ flip firstM ((,) <$> [0 .. 99] <*> [0 .. 99]) $ \(a, b) ->
     case goHead (restoreWith a b input) of
       -- Expect: (50, 64)
-      Just 19690720 -> print (a, b, 100 * a + b)
-      _ -> pure ()
+      Just 19690720 -> print (a, b, 100 * a + b) >> pure True
+      _ -> pure False
   where
     goHead :: [Int] -> Maybe Int
     goHead = listToMaybe . take 1 . go
-    go = fst . runState computer . indexList 4
+    go = fst . runState computer . (0,) . fromList
     sample =
       [ "1,0,0,0,99",
         "2,3,0,3,99",
@@ -42,34 +44,32 @@ main = do
         "1,1,1,4,99,5,6,0,99"
       ]
 
-computer :: State ([Int], IntMap Int) [Int]
-computer =
-  fmap elems <$> untilJust $
-    get >>= \case
-      ([], mem) -> pure $ Just mem
-      (idx : is, mem) -> case readAddr idx mem of
-        99 -> pure $ Just mem
-        1 -> put (is, doOp (+) idx mem) >> pure Nothing
-        2 -> put (is, doOp (*) idx mem) >> pure Nothing
-        op -> error $ "Bad op code: " <> show op
-  where
-    readAddr :: Int -> IntMap Int -> Int
-    readAddr k = fromMaybe (error "Bad addr") . lookup k
-    readMem :: Int -> IntMap Int -> Int
-    readMem k m = fromMaybe (error "Bad memory ref") $ lookup (readAddr k m) m
-    writeMem :: Int -> Int -> IntMap Int -> IntMap Int
-    writeMem k v m = alter (maybe (error "Bad memory ref") (const $ Just v)) (readAddr k m) m
-    doOp :: (Int -> Int -> Int) -> Int -> IntMap Int -> IntMap Int
-    doOp op idx mem =
-      let a = readMem (idx + 1) mem
-          b = readMem (idx + 2) mem
-       in writeMem (idx + 3) (op a b) mem
+type Address = Int
+type Memory = Seq Int
 
-indexList :: Int -> [a] -> ([Int], IntMap a)
-indexList next x = (opIndices, fromList $ zip indices x)
+computer :: State (Address, Memory) [Int]
+computer =
+  fmap toList <$> untilJust $ do
+    (idx, mem) <- get
+    case readAddrMaybe idx mem of
+      Nothing -> pure $ Just mem
+      Just 99 -> pure $ Just mem
+      Just 1 -> put (idx + 4, doOp (+) idx mem) >> pure Nothing
+      Just 2 -> put (idx + 4, doOp (*) idx mem) >> pure Nothing
+      Just op -> error $ "Bad op code: " <> show op
   where
-    indices = [0 .. length x -1]
-    opIndices = [0, next .. length x -1]
+    readAddr :: Address -> Memory -> Int
+    readAddr k = fromMaybe (error "Bad addr") . readAddrMaybe k
+    readAddrMaybe = Seq.lookup
+    readPointer :: Address -> Memory -> Int
+    readPointer k m = fromMaybe (error "Bad pointer") $ readAddrMaybe (readAddr k m) m
+    writeMem :: Address -> Int -> Memory -> Memory
+    writeMem k v m = Seq.update (readAddr k m) v m
+    doOp :: (Int -> Int -> Int) -> Address -> Memory -> Memory
+    doOp op idx mem =
+      let a = readPointer (idx + 1) mem
+          b = readPointer (idx + 2) mem
+       in writeMem (idx + 3) (op a b) mem
 
 restore1202 :: [Int] -> [Int]
 restore1202 = restoreWith 12 2
