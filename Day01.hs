@@ -12,8 +12,10 @@ import Relude.Extra.Tuple (dup)
 main :: IO ()
 main = do
   Right input <- readLines "input/1"
-  print $ sum $ completeFuelRequired <$> input
+  -- Expect 3520097
+  print $ sum $ fuelRequired <$> input
   -- Expect: 5277255
+  print $ sum $ completeFuelRequired <$> input
 
 completeFuelRequired :: Int -> Int
 completeFuelRequired =

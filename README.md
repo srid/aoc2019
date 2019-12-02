@@ -10,8 +10,8 @@ https://adventofcode.com/2019
 Install Nix, and then:
 
 ``` sh
-./01.hs
-./02.hs
+./Day01.hs
+./Day02.hs
 # etc...
 ```
 
