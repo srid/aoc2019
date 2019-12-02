@@ -42,7 +42,7 @@ main = do
         "1,1,1,4,99,5,6,0,99"
       ]
 
-computer :: State ([Int], Map Int Int) [Int]
+computer :: State ([Int], IntMap Int) [Int]
 computer =
   fmap elems <$> untilJust $
     get >>= \case
@@ -53,20 +53,19 @@ computer =
         2 -> put (is, doOp (*) idx mem) >> pure Nothing
         op -> error $ "Bad op code: " <> show op
   where
-    readAddr :: Int -> Map Int Int -> Int
+    readAddr :: Int -> IntMap Int -> Int
     readAddr k = fromMaybe (error "Bad addr") . lookup k
-    readMem :: Int -> Map Int Int -> Int
-    readMem k m =
-      fromMaybe (error "Bad memory ref") $
-        lookup (readAddr k m) m
-    writeMem k v m = alter (maybe (error "Badd memory ref") (const $ Just v)) (readAddr k m) m
-    doOp :: (Int -> Int -> Int) -> Int -> Map Int Int -> Map Int Int
+    readMem :: Int -> IntMap Int -> Int
+    readMem k m = fromMaybe (error "Bad memory ref") $ lookup (readAddr k m) m
+    writeMem :: Int -> Int -> IntMap Int -> IntMap Int
+    writeMem k v m = alter (maybe (error "Bad memory ref") (const $ Just v)) (readAddr k m) m
+    doOp :: (Int -> Int -> Int) -> Int -> IntMap Int -> IntMap Int
     doOp op idx mem =
       let a = readMem (idx + 1) mem
           b = readMem (idx + 2) mem
        in writeMem (idx + 3) (op a b) mem
 
-indexList :: Int -> [a] -> ([Int], Map Int a)
+indexList :: Int -> [a] -> ([Int], IntMap a)
 indexList next x = (opIndices, fromList $ zip indices x)
   where
     indices = [0 .. length x -1]
