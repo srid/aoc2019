@@ -13,6 +13,7 @@
 
 import Control.Exception
 import qualified Data.Map as Map
+import GHC.Natural
 import Relude
 import Relude.Extra.Bifunctor
 import Text.Megaparsec
@@ -31,20 +32,23 @@ data Move
 type Coord = (Int, Int)
 
 -- | A path is set of coordinates and the signal delay length (sum of steps)
-type Path = Map Coord Int
+type Path = Map Coord Natural
 
-moveLength :: Move -> Int
-moveLength = \case
+distance :: Coord -> Natural
+distance (a, b) = abs' a + abs' b
+
+moveLength :: Move -> Natural
+moveLength = intToNatural . \case
   R n -> n
   U n -> n
   L n -> n
   D n -> n
 
 moveCoord :: Coord -> Move -> Coord
-moveCoord (x, y) = bimap (+x) (+y) . \case
+moveCoord (x, y) = bimap (+ x) (+ y) . \case
   R n -> (n, 0)
-  U n -> (0, -n)
-  L n -> (-n, 0)
+  U n -> (0, - n)
+  L n -> (- n, 0)
   D n -> (0, n)
 
 movePath :: Move -> Path
@@ -54,7 +58,16 @@ movePath = \case
   L n -> coords [0, -1 .. (- n)] [0]
   D n -> coords [0] [0 .. n]
   where
-    coords x y = Map.fromList $ liftA2 (,) x y <&> \(a, b) -> ((a, b), abs a + abs b)
+    coords x y = Map.fromList $ liftA2 (,) x y <&> id &&& distance
+
+mkPath :: [Move] -> Path
+mkPath = snd . foldl' f (((0, 0), 0), mempty)
+  where
+    f ((loc, dist), acc) move =
+      ( (moveCoord loc move, dist + moveLength move),
+        Map.union acc $ shiftPath loc dist (movePath move)
+      )
+    shiftPath (x, y) dist = Map.mapKeys (bimap (+ x) (+ y)) . Map.map (+ dist)
 
 main :: IO ()
 main = do
@@ -62,8 +75,8 @@ main = do
   forM_ (samples <> [(input, (280, 10554))]) $ \(inp, (part1Ans, part2Ans)) -> do
     let (pathA, pathB) = bimapBoth mkPath $ parseInput inp
     let common = Map.delete ((0, 0)) $ Map.intersectionWith (+) pathA pathB
-    let part1 = head $ fromList $ sort $ map (\(a, b) -> abs a + abs b) $ Map.keys common
-        part2 = head $ fromList $ sort $ Map.elems common
+    let part1 = minimumElem $ distance <$> Map.keys common
+        part2 = minimumElem $ Map.elems common
     putStrLn "Answer:"
     print $ assert (part1 == part1Ans) part1
     print $ assert (part2 == part2Ans) part2
@@ -77,13 +90,11 @@ main = do
         ("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51\nU98,R91,D20,R16,D67,R40,U7,R15,U6,R7", (135, 410))
       ]
 
-mkPath :: [Move] -> Path
-mkPath = snd . foldl' f (((0, 0), 0), mempty)
-  where
-    f ((curr, dist), acc) move =
-      let next = shiftPath curr dist (movePath move)
-       in ((moveCoord curr move, dist + moveLength move), Map.unionWith min next acc)
-    shiftPath (x, y) dist = Map.fromList . fmap (bimap (bimap (+ x) (+ y)) (+ dist)) . Map.toList
+abs' :: Int -> Natural
+abs' = intToNatural . abs
+
+minimumElem :: Ord a => [a] -> a
+minimumElem = head . fromList . sort
 
 parseInput :: Text -> ([Move], [Move])
 parseInput =
