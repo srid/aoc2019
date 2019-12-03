@@ -23,10 +23,10 @@ import qualified Text.Megaparsec.Char.Lexer as L
 type Parser = Parsec Void Text
 
 data Move
-  = R Int
-  | U Int
-  | L Int
-  | D Int
+  = R Natural
+  | U Natural
+  | L Natural
+  | D Natural
   deriving (Eq, Show)
 
 type Point = (Int, Int)
@@ -42,10 +42,10 @@ shiftPoint (x, y) = bimap (+ x) (+ y)
 
 pointFromOrigin :: Move -> Point
 pointFromOrigin = \case
-  R n -> (n, 0)
-  U n -> (0, - n)
-  L n -> (- n, 0)
-  D n -> (0, n)
+  R n -> (naturalToInt n, 0)
+  U n -> (0, - naturalToInt n)
+  L n -> (- naturalToInt n, 0)
+  D n -> (0, naturalToInt n)
 
 pointFrom :: Point -> Move -> Point
 pointFrom p = shiftPoint p . pointFromOrigin
