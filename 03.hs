@@ -37,6 +37,9 @@ type Path = Map Point Natural
 distance :: Point -> Natural
 distance (a, b) = abs' a + abs' b
 
+shiftPoint :: Point -> Point -> Point
+shiftPoint (x, y) = bimap (+ x) (+ y)
+
 pointFromOrigin :: Move -> Point
 pointFromOrigin = \case
   R n -> (n, 0)
@@ -50,9 +53,6 @@ pointFrom p = shiftPoint p . pointFromOrigin
 moveLength :: Move -> Natural
 moveLength = distance . pointFromOrigin
 
-shiftPoint :: Point -> Point -> Point
-shiftPoint (x, y) = bimap (+ x) (+ y)
-
 movePath :: Move -> Path
 movePath = points . bimapBoth range . pointFromOrigin
   where
@@ -61,16 +61,20 @@ movePath = points . bimapBoth range . pointFromOrigin
     points (xs, ys) =
       Map.fromList $ fmap (id &&& distance) $ liftA2 (,) xs ys
 
+shiftPath :: Point -> Natural -> Path -> Path
+shiftPath (x, y) dist =
+  Map.mapKeys (bimap (+ x) (+ y)) . Map.map (+ dist)
+
+origin :: Point
+origin = (0, 0)
+
 mkPath :: [Move] -> Path
 mkPath = Map.delete origin . snd . foldl' f ((origin, 0), mempty)
   where
-    origin = (0, 0)
     f ((loc, dist), acc) move =
       ( (pointFrom loc move, dist + moveLength move),
         Map.union acc $ shiftPath loc dist (movePath move)
       )
-    shiftPath (x, y) dist =
-      Map.mapKeys (bimap (+ x) (+ y)) . Map.map (+ dist)
 
 main :: IO ()
 main = do
