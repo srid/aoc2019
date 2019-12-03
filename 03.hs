@@ -3,19 +3,17 @@
 #! nix-shell -p "import ./haskell.nix (p: [p.relude p.megaparsec])"
 #! nix-shell --pure -i "ghcid --warnings -T main"
 
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import Control.Exception
+import Control.Exception (assert)
 import qualified Data.Map as Map
 import GHC.Natural
 import Relude
-import Relude.Extra.Bifunctor
+import Relude.Extra.Bifunctor (bimapBoth)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -35,7 +33,7 @@ type Point = (Int, Int)
 type Path = Map Point Natural
 
 distance :: Point -> Natural
-distance (a, b) = abs' a + abs' b
+distance = uncurry (+) . bimapBoth abs'
 
 shiftPoint :: Point -> Point -> Point
 shiftPoint (x, y) = bimap (+ x) (+ y)
@@ -47,19 +45,23 @@ pointFromOrigin = \case
   L n -> (- naturalToInt n, 0)
   D n -> (0, naturalToInt n)
 
+pointsFromOrigin :: Move -> [Point]
+pointsFromOrigin = uncurry (liftA2 (,)) . bimapBoth range . pointFromOrigin
+  where
+    range 0 = [0]
+    range b = [0, signum b .. b]
+
 pointFrom :: Point -> Move -> Point
 pointFrom p = shiftPoint p . pointFromOrigin
 
 moveLength :: Move -> Natural
 moveLength = distance . pointFromOrigin
 
-movePath :: Move -> Path
-movePath = points . bimapBoth range . pointFromOrigin
-  where
-    range 0 = [0]
-    range b = [0, signum b .. b]
-    points (xs, ys) =
-      Map.fromList $ fmap (id &&& distance) $ liftA2 (,) xs ys
+pathFromOrigin :: Move -> Path
+pathFromOrigin = Map.fromList . fmap (id &&& distance) . pointsFromOrigin
+
+pathFrom :: Point -> Natural -> Move -> Path
+pathFrom loc dist = shiftPath loc dist . pathFromOrigin
 
 shiftPath :: Point -> Natural -> Path -> Path
 shiftPath (x, y) dist =
@@ -73,7 +75,7 @@ mkPath = Map.delete origin . snd . foldl' f ((origin, 0), mempty)
   where
     f ((loc, dist), acc) move =
       ( (pointFrom loc move, dist + moveLength move),
-        Map.union acc $ shiftPath loc dist (movePath move)
+        acc `Map.union` pathFrom loc dist move
       )
 
 main :: IO ()
