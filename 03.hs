@@ -12,8 +12,11 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 
 import qualified Data.Set as Set
+import qualified Data.Map as Map
 import Relude hiding (traceShowId)
 import Relude.Extra.Bifunctor
+import Control.Exception
+import Data.List (minimumBy)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -29,7 +32,15 @@ data Move
 
 type Coord = (Int, Int)
 
-type Path = Set Coord
+-- | A path is set of coordinates and the signal delay length (sum of steps)
+type Path = Map Coord Int
+
+moveLength :: Move -> Int
+moveLength = \case
+  R n -> n
+  U n -> n
+  L n -> n
+  D n -> n
 
 moveCoord :: Move -> Coord -> Coord
 moveCoord move (x, y) = case move of
@@ -45,33 +56,37 @@ movePath = \case
   L n -> coords [0, -1 .. (- n)] [0]
   D n -> coords [0] [0 .. n]
   where
-    coords x y = Set.fromList $ liftA2 (,) x y
+    coords x y = Map.fromList $ liftA2 (,) x y <&> \(a, b) -> ((a,b), abs a + abs b)
 
 main :: IO ()
 main = do
-  -- 280
   input <- readFileText "input/3"
-  forM_ (samples <> [input]) $ \inp -> do
+  forM_ (samples <> [(input, (280, 10554))]) $ \(inp, (part1Ans, part2Ans)) -> do
     let (pathA, pathB) = bimapBoth mkPath $ parseInput inp
-    let common = Set.intersection pathA pathB
-    print $ Set.lookupMin $ Set.delete 0 $ Set.fromList $ uncurry (+) . bimapBoth abs <$> Set.toList common
+    let common = Map.delete ((0, 0)) $ Map.intersectionWith (+) pathA pathB
+    let part1 = head $ fromList $ sort $ map (\(a,b) -> abs a + abs b) $ Map.keys common
+        part2 = head $ fromList $ sort $ Map.elems common
+    putStrLn "Answer:"
+    print $ assert (part1 == part1Ans) part1
+    print $ assert (part2 == part2Ans) part2
   where
     samples =
       [ -- 6
-        "R8,U5,L5,D3\nU7,R6,D4,L4",
+        ("R8,U5,L5,D3\nU7,R6,D4,L4", (6,30)),
         -- 159
-        "R75,D30,R83,U83,L12,D49,R71,U7,L72\nU62,R66,U55,R34,D71,R55,D58,R83",
+        ("R75,D30,R83,U83,L12,D49,R71,U7,L72\nU62,R66,U55,R34,D71,R55,D58,R83", (159, 610)),
         -- 135
-        "R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51\nU98,R91,D20,R16,D67,R40,U7,R15,U6,R7"
+        ("R98,U47,R26,D63,R33,U87,L62,D20,R33,U53,R51\nU98,R91,D20,R16,D67,R40,U7,R15,U6,R7", (135, 410))
       ]
 
 mkPath :: [Move] -> Path
-mkPath = snd . foldl' f ((0, 0), mempty)
+mkPath = snd . foldl' f (((0, 0), 0), mempty)
   where
-    f (curr, acc) move =
-      let next = shiftPath curr (movePath move)
-       in (moveCoord move curr, Set.union next acc)
-    shiftPath (x, y) = Set.fromList . fmap (bimap (+x) (+y)) . Set.toList
+    f :: ((Coord, Int), Path) -> Move -> ((Coord, Int), Path)
+    f ((curr, sigdel), acc) move =
+      let next = shiftPath curr sigdel (movePath move)
+       in ((moveCoord move curr, sigdel + moveLength move), Map.unionWith min next acc)
+    shiftPath (x, y) sigdel = Map.fromList . fmap (bimap (bimap (+x) (+y)) (+sigdel)) . Map.toList
 
 parseInput :: Text -> ([Move], [Move])
 parseInput =
