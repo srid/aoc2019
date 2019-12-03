@@ -11,12 +11,10 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
-import qualified Data.Set as Set
-import qualified Data.Map as Map
-import Relude hiding (traceShowId)
-import Relude.Extra.Bifunctor
 import Control.Exception
-import Data.List (minimumBy)
+import qualified Data.Map as Map
+import Relude
+import Relude.Extra.Bifunctor
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -42,12 +40,12 @@ moveLength = \case
   L n -> n
   D n -> n
 
-moveCoord :: Move -> Coord -> Coord
-moveCoord move (x, y) = case move of
-  R n -> (x + n, y)
-  U n -> (x, y - n)
-  L n -> (x - n, y)
-  D n -> (x, y + n)
+moveCoord :: Coord -> Move -> Coord
+moveCoord (x, y) = bimap (+x) (+y) . \case
+  R n -> (n, 0)
+  U n -> (0, -n)
+  L n -> (-n, 0)
+  D n -> (0, n)
 
 movePath :: Move -> Path
 movePath = \case
@@ -56,7 +54,7 @@ movePath = \case
   L n -> coords [0, -1 .. (- n)] [0]
   D n -> coords [0] [0 .. n]
   where
-    coords x y = Map.fromList $ liftA2 (,) x y <&> \(a, b) -> ((a,b), abs a + abs b)
+    coords x y = Map.fromList $ liftA2 (,) x y <&> \(a, b) -> ((a, b), abs a + abs b)
 
 main :: IO ()
 main = do
@@ -64,7 +62,7 @@ main = do
   forM_ (samples <> [(input, (280, 10554))]) $ \(inp, (part1Ans, part2Ans)) -> do
     let (pathA, pathB) = bimapBoth mkPath $ parseInput inp
     let common = Map.delete ((0, 0)) $ Map.intersectionWith (+) pathA pathB
-    let part1 = head $ fromList $ sort $ map (\(a,b) -> abs a + abs b) $ Map.keys common
+    let part1 = head $ fromList $ sort $ map (\(a, b) -> abs a + abs b) $ Map.keys common
         part2 = head $ fromList $ sort $ Map.elems common
     putStrLn "Answer:"
     print $ assert (part1 == part1Ans) part1
@@ -72,7 +70,7 @@ main = do
   where
     samples =
       [ -- 6
-        ("R8,U5,L5,D3\nU7,R6,D4,L4", (6,30)),
+        ("R8,U5,L5,D3\nU7,R6,D4,L4", (6, 30)),
         -- 159
         ("R75,D30,R83,U83,L12,D49,R71,U7,L72\nU62,R66,U55,R34,D71,R55,D58,R83", (159, 610)),
         -- 135
@@ -82,11 +80,10 @@ main = do
 mkPath :: [Move] -> Path
 mkPath = snd . foldl' f (((0, 0), 0), mempty)
   where
-    f :: ((Coord, Int), Path) -> Move -> ((Coord, Int), Path)
-    f ((curr, sigdel), acc) move =
-      let next = shiftPath curr sigdel (movePath move)
-       in ((moveCoord move curr, sigdel + moveLength move), Map.unionWith min next acc)
-    shiftPath (x, y) sigdel = Map.fromList . fmap (bimap (bimap (+x) (+y)) (+sigdel)) . Map.toList
+    f ((curr, dist), acc) move =
+      let next = shiftPath curr dist (movePath move)
+       in ((moveCoord curr move, dist + moveLength move), Map.unionWith min next acc)
+    shiftPath (x, y) dist = Map.fromList . fmap (bimap (bimap (+ x) (+ y)) (+ dist)) . Map.toList
 
 parseInput :: Text -> ([Move], [Move])
 parseInput =
