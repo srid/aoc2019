@@ -78,13 +78,15 @@ mkPath = Map.delete origin . snd . foldl' f ((origin, 0), mempty)
         acc `Map.union` pathFrom loc dist move
       )
 
+wireIntersection :: ([Move], [Move]) -> Path
+wireIntersection = uncurry (Map.intersectionWith (+)) . bimapBoth mkPath
+
 main :: IO ()
 main = do
   input <- (,(280, 10554)) <$> readFileText "input/3"
   forM_ (samples <> [input]) $ \(inp, (part1Ans, part2Ans)) -> do
-    let (pathA, pathB) = bimapBoth mkPath $ parseInput inp
-    let common = Map.intersectionWith (+) pathA pathB
-    let part1 = minimumElem $ distance <$> Map.keys common
+    let common = wireIntersection $ parseInput inp
+        part1 = minimumElem $ distance <$> Map.keys common
         part2 = minimumElem $ Map.elems common
     putStrLn "Answer:"
     print $ assert (part1 == part1Ans) part1
@@ -115,8 +117,6 @@ inputParser = (,) <$> (p <* eol) <*> p
 moveParser :: Parser Move
 moveParser =
   choice $
-    dirs <&> \(c, mk) -> do
-      void $ char c
-      mk <$> L.decimal
+    dirs <&> \(c, mk) -> mk <$> (char c *> L.decimal)
   where
     dirs = [('R', R), ('U', U), ('L', L), ('D', D)]
