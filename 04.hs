@@ -10,14 +10,15 @@ import Relude
 
 main :: IO ()
 main = do
-  let ans = length $ filter isPassword $ show <$> [172930 .. 683082 :: Int]
-  print $ assert (ans == 1675) ans
+  let input = show <$> [172930 .. 683082 :: Int]
+      ans1 = length $ filter (isPassword (> 1)) input
+      ans2 = length $ filter (isPassword (== 2)) input
+  print $ assert (ans1 == 1675) ans1
+  print $ assert (ans2 == 1142) ans2
 
-isPassword :: String -> Bool
-isPassword s =
+isPassword :: (Int -> Bool) -> String -> Bool
+isPassword f s =
   and
-    [ any (uncurry (==)) pairs,
-      all (uncurry (<=)) pairs
+    [ all (uncurry (<=)) $ zip s (drop 1 s),
+      any (f . length) $ group s
     ]
-  where
-    pairs = zip s (drop 1 s)
